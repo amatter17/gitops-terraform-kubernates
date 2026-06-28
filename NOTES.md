@@ -45,7 +45,7 @@ Both Dockerfiles use multi-stage builds to keep the final image lean.
 
 **Problem:** `docker compose up --build` failed with:
 
-```
+```text
 An unhandled exception occurred: Inlining of fonts failed.
 An error has occurred while retrieving https://fonts.googleapis.com/...
 ```
@@ -110,3 +110,28 @@ COPY --from=build /app/target/*.jar app.jar
 **Why it worked:** `jdeps` statically analyses the JAR's bytecode to list every Java module it imports. `jlink` then assembles a JRE with exactly those modules — no reflection APIs, no CORBA, no XML-RPC, none of the legacy cruft bundled in a standard JRE. `--compress=2` and `--strip-debug` shrink it further. The final base is `alpine:3.19` (~5MB) instead of `eclipse-temurin:17-jre-alpine` (~180MB).
 
 **GraalVM native-image was tried and reverted.** Result: 244MB disk / 60.7MB compressed — larger on disk than jlink (204MB), 15+ minute build time, and Maven installation alone took 200s inside the GraalVM container. The compressed size is better (60.7MB vs 86.3MB) but not worth the tradeoff. Spring Boot's native binary bundles all AOT-generated reflection metadata and Hibernate proxies statically, making it fatter than expected. jlink remains the better option for this stack.
+
+---
+
+## SonarCloud Setup
+
+SonarCloud is the free hosted SonarQube — no server to run, free for public repos.
+
+**Getting the token:**
+
+1. Go to <https://sonarcloud.io> and sign in with GitHub
+2. Import your repo via "+" → "Analyze new project"
+3. Note your **organization key** (shown on the org page, used as `SONAR_ORGANIZATION`)
+4. Go to **My Account → Security → Generate Token** — copy it immediately, it is only shown once
+
+**Adding secrets to GitHub Actions:**
+
+Go to repo → **Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | Value |
+| --- | --- |
+| `SONAR_TOKEN` | personal token from step 4 |
+| `SONAR_HOST_URL` | `https://sonarcloud.io` |
+| `SONAR_ORGANIZATION` | org key from step 3 |
+
+The SonarQube steps in both CI workflows are conditional (`if: env.SONAR_TOKEN != ''`) so they are silently skipped when secrets are not configured — the rest of the pipeline still runs.
