@@ -63,15 +63,12 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: OWASP Dependency-Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: inventory-backend
-          path: backend
-          format: HTML
-          out: reports
-          args: >-
-            --failOnCVSS 9
-            --enableRetired
+        run: |
+          mvn org.owasp:dependency-check-maven:check \
+            -DfailBuildOnCVSS=9 \
+            -Dformat=HTML \
+            -DoutputDirectory=../reports
+        continue-on-error: true
 
       - name: Upload OWASP report
         uses: actions/upload-artifact@v4

@@ -135,3 +135,12 @@ Go to repo → **Settings → Secrets and variables → Actions → New reposito
 | `SONAR_ORGANIZATION` | org key from step 3 |
 
 The SonarQube steps in both CI workflows are conditional (`if: env.SONAR_TOKEN != ''`) so they are silently skipped when secrets are not configured — the rest of the pipeline still runs.
+
+**Project key must match SonarCloud exactly:**
+
+When you import a repo into SonarCloud it auto-generates the project key as `{org}_{repo}` — e.g. `ToYoNiX_gitops-terraform-kubernates`. This key must be set identically in both config files or the scan fails with "not authorized or project not found":
+
+- Backend: `sonar.projectKey` in `backend/pom.xml`
+- Frontend: `sonar.projectKey` in `frontend/sonar-project.properties`
+
+Find the correct key from the project URL on SonarCloud: `sonarcloud.io/project/overview?id=<this-is-the-key>`.
