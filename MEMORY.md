@@ -14,7 +14,7 @@ The application is a realistic CRUD web app for managing warehouse/office invent
 ├── frontend/                 # Angular 17 SPA (TypeScript, Angular Material)
 ├── terraform/                # (planned) AWS infrastructure as code
 ├── kubernetes/               # (planned) K8s manifests for all services
-├── .github/workflows/        # (planned) CI/CD, SAST, DAST, linting workflows
+├── .github/workflows/        # CI/CD pipelines (backend-ci, frontend-ci, dast)
 ├── docker-compose.yml        # Local dev: spins up Postgres + backend + frontend
 ├── MEMORY.md                 # Project context for humans and agents
 ├── NOTES.md                  # Lessons learned, technical decisions, gotchas
@@ -76,15 +76,48 @@ All credentials are injected via environment variables — map these to Kubernet
 | `DB_USER` | `postgres` | Database user |
 | `DB_PASSWORD` | `postgres` | Database password |
 
-## DevSecOps pipeline (planned workflows)
+## DevSecOps pipeline
 
-The `.github/workflows/` directory will contain:
+### Implemented workflows
 
-- **backend-ci.yml** — Maven build, JUnit tests, JaCoCo coverage, SonarQube SAST, OWASP Dependency-Check, Trivy image scan, secrets detection (Gitleaks)
-- **frontend-ci.yml** — npm install, ESLint, Angular build, Karma unit tests, SonarQube SAST, npm audit, Trivy image scan
-- **dast.yml** — Selenium E2E tests + OWASP ZAP dynamic scan against deployed environment
+- **backend-ci.yml** — Gitleaks secrets scan → Maven build + JUnit + JaCoCo → SonarQube SAST → OWASP Dependency-Check → Trivy image scan
+- **frontend-ci.yml** — ESLint → npm audit → Karma unit tests + coverage → SonarQube SAST → Trivy image scan
+- **dast.yml** — Spins up full stack via docker compose → Selenium E2E smoke tests → OWASP ZAP full scan. Triggered manually or weekly (Monday 2am)
+
+### Planned workflows
+
 - **terraform.yml** — Terraform plan/apply for AWS infrastructure
 - **deploy.yml** — Update Kubernetes manifests and trigger ArgoCD/Flux sync
+
+## GitHub Actions secrets
+
+All secrets are added at: **repo → Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | Required | Description |
+| --- | --- | --- |
+| `SONAR_TOKEN` | Yes | SonarCloud personal access token |
+| `SONAR_HOST_URL` | Yes | Always `https://sonarcloud.io` |
+| `SONAR_ORGANIZATION` | Yes | SonarCloud org key (found in the org URL: `sonarcloud.io/organizations/<key>`) |
+| `NVD_API_KEY` | Recommended | Speeds up OWASP Dependency-Check from 20 min to 2 min |
+| `GITLEAKS_LICENSE` | No | Only needed for private repos — public repos work without it |
+
+### Getting SONAR_TOKEN
+
+1. Go to <https://sonarcloud.io> and sign in with GitHub
+2. Import the repo via "+" → "Analyze new project"
+3. Disable **Automatic Analysis**: Administration → Analysis Method → toggle off (required or CI scan fails)
+4. Go to **My Account → Security → Generate Token** — type: Global Analysis Token
+5. The `sonar.projectKey` in `backend/pom.xml` and `frontend/sonar-project.properties` must exactly match the key SonarCloud auto-generates (`{org}_{repo}`, e.g. `ToYoNiX_gitops-terraform-kubernates`)
+
+### Getting NVD_API_KEY
+
+1. Go to <https://nvd.nist.gov/developers/request-an-api-key>
+2. Fill in your email, organization name, and organization type
+3. You will receive an email with a UUID and a verification link
+4. Click the link, enter your email and the UUID
+5. Your API key is shown — copy it and add it as `NVD_API_KEY` in GitHub secrets
+
+---
 
 ## Commit message standard
 
